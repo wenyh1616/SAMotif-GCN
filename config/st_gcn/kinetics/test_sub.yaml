@@ -1,0 +1,26 @@
+work_dir: ./models/Kinetics-M
+weights: ./models/Kinetics-M/Kinetics-M.pt
+# feeder
+feeder: feeder.feeder.Feeder
+test_feeder_args:
+  data_path: ../data/kinetics-skeleton-sub/val_data.npy
+  label_path: ../data/kinetics-skeleton-sub/val_label.pkl
+# model
+model: net.SAmotif_stgcn_PTDB.Model
+model_args:
+  in_channels: 3
+  num_class: 30
+  dropout: 0
+  edge_importance_weighting: False
+  pyramid_pool: False
+  graph_args:
+    layout: 'openpose'
+    strategy: 'spatial'
+  vtdb_args:
+    interc: 1
+    gr: 8
+
+phase: test
+device: [0,1]
+test_batch_size: 64
+

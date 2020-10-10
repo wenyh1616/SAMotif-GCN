@@ -1,0 +1,45 @@
+work_dir: ./work_dir/recognition/kinetics_skeleton-sub/models
+
+# feeder
+feeder: feeder.feeder.Feeder
+train_feeder_args:
+  random_choose: True
+  random_move: True
+  window_size: 150
+  data_path: ../data/kinetics-skeleton-sub/train_data.npy
+  label_path: ../data/kinetics-skeleton-sub/train_label.pkl
+test_feeder_args:
+  window_size: 300
+  data_path: ../data/kinetics-skeleton-sub/val_data.npy
+  label_path: ../data/kinetics-skeleton-sub/val_label.pkl
+
+# model
+
+model: net.SAmotif_stgcn_PTDB.Model
+
+model_args:
+  in_channels: 3
+  num_class: 30
+  dropout: 0
+  edge_importance_weighting: False
+  pyramid_pool: False
+  graph_args:
+    layout: 'openpose'
+    strategy: 'spatial'
+  vtdb_args:
+    interc: 1
+    gr: 8
+
+# training
+lamda_r: 0.00014
+device: [0,1]
+batch_size: 64
+test_batch_size: 64
+
+#optim
+optimizer: 'SGD'
+base_lr: 0.1
+step: [50, 60, 70, 80]
+num_epoch: 90
+
+
