@@ -1,8 +1,10 @@
 # The based unit of graph convolutional networks.
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+import jittor
+import jittor.nn as nn
 class ConvTemporalGraphical(nn.Module):
 
     r"""The basic module for applying a graph convolution.
@@ -59,11 +61,11 @@ class ConvTemporalGraphical(nn.Module):
             dilation=(t_dilation, 1),
             bias=bias)
 
-    def forward(self, x, A, importance, x_med):
+    def execute(self, x, A, importance, x_med):
         assert A.size(0) == self.kernel_size + 1
 
         x_k2 = self.conv2(x)
-        x_k2 = torch.einsum('nctv,nvw->nctw', (x_k2, x_med))
+        x_k2 = jittor.linalg.einsum('nctv,nvw->nctw', (x_k2, x_med))
         # x_k2 = torch.einsum('nctv,nvw->nctw', (x_k2, x_med *  importance[-1]))
 
         x = self.conv(x)
@@ -71,7 +73,7 @@ class ConvTemporalGraphical(nn.Module):
         n, kc, t, v = x.size()
         x = x.view(n, self.kernel_size, kc//self.kernel_size, t, v)
         # A_importance = F.softmax(A[:-1] * importance[:-1], dim = 1)
-        x = torch.einsum('nkctv,kvw->nctw', (x, A[:-1] * importance[:-1]))
+        x = jittor.linalg.einsum('nkctv,kvw->nctw', (x, A[:-1] * importance[:-1]))
         x = x + x_k2
 
-        return x.contiguous(), A
+        return x, A

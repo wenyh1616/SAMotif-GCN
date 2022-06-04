@@ -3,25 +3,28 @@
 import argparse
 
 # torch
-import torch
+# import torch
 # torchlight
-import torchlight
-from torchlight import str2bool
-from torchlight import DictAction
-from torchlight import import_class
+import torchlight.torchlight as torchlight
+from torchlight.torchlight import str2bool
+from torchlight.torchlight import DictAction
+from torchlight.torchlight import import_class
 import numpy as np
 from .io import IO
 import pickle
 # from torchstat import stat
 # import torchvision.models as models
 import random
-torch.cuda.manual_seed_all(1)
-torch.manual_seed(1)
-np.random.seed(1)
+# torch.cuda.manual_seed_all(1)
+# torch.manual_seed(1)
+# np.random.seed(1)
 random.seed(1)
+import jittor
+jittor.set_global_seed(1)
+jittor.flags.use_cuda = 1
 # torch.backends.cudnn.enabled = False
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+# torch.backends.cudnn.deterministic = True
+# torch.backends.cudnn.benchmark = False
 
 
 # def init_seed(_):
@@ -67,23 +70,19 @@ class Processor(IO):
             self.arg.train_feeder_args['debug'] = self.arg.debug
         self.data_loader = dict()
         if self.arg.phase == 'train':
-            self.data_loader['train'] = torch.utils.data.DataLoader(
-                dataset=Feeder(**self.arg.train_feeder_args),
-                batch_size=self.arg.batch_size,
-                shuffle=True,
-                num_workers=self.arg.num_worker * torchlight.ngpu(
-                    self.arg.device),
-                drop_last=True)#,
-                #worker_init_fn=init_seed)
+            self.data_loader['train'] = Feeder(**self.arg.train_feeder_args).set_attrs(
+                batch_size = self.arg.batch_size,
+                shuffle = True,
+                num_workers=self.arg.num_worker * torchlight.ngpu(self.arg.device),
+                drop_last=True
+            )
         if self.arg.test_feeder_args:
-            self.data_loader['test'] = torch.utils.data.DataLoader(
-                dataset=Feeder(**self.arg.test_feeder_args),
-                batch_size=self.arg.test_batch_size,
-                shuffle=False,
-                num_workers=self.arg.num_worker * torchlight.ngpu(
-                    self.arg.device),
-                drop_last=False)#,
-                #worker_init_fn=init_seed)
+            self.data_loader['test'] = Feeder(**self.arg.test_feeder_args).set_attrs(
+                batch_size = self.arg.test_batch_size,
+                shuffle = False,
+                num_workers=self.arg.num_worker * torchlight.ngpu(self.arg.device),
+                drop_last=False
+            )
 
 
 

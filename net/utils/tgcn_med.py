@@ -1,7 +1,9 @@
 # The based unit of graph convolutional networks.
 
-import torch
-import torch.nn as nn
+# import torch
+# import torch.nn as nn
+import jittor
+import jittor.nn as nn
 
 class MotifSTGraphical(nn.Module):
 
@@ -45,6 +47,14 @@ class MotifSTGraphical(nn.Module):
         super().__init__()
 
         self.kernel_size = kernel_size
+        # self.conv_k1 = nn.Conv(
+        #     in_channels,
+        #     out_channels * kernel_size,
+        #     kernel_size=(t_kernel_size, 1),
+        #     padding=(t_padding, 0),
+        #     stride=(t_stride, 1),
+        #     dilation=(t_dilation, 1),
+        #     bias=bias)
         self.conv_k1 = nn.Conv2d(
             in_channels,
             out_channels * kernel_size,
@@ -63,16 +73,14 @@ class MotifSTGraphical(nn.Module):
             bias=bias)
 
 
-    def forward(self, x, A, x_med):
+    def execute(self, x, A, x_med):
         assert A.size(0) == self.kernel_size
-
         x_k1 = self.conv_k1(x)
         n, kc, t, v = x_k1.size()
         x_k1 = x_k1.view(n, self.kernel_size, kc//self.kernel_size, t, v)
-        x_k1 = torch.einsum('nkctv,kvw->nctw', (x_k1, A))
-
+        x_k1 = jittor.linalg.einsum('nkctv,kvw->nctw', x_k1, A)
         x_k2 = self.conv_k2(x)
-        x_k2 = torch.einsum('nctv,nvw->nctw', (x_k2, x_med))
+        x_k2 = jittor.linalg.einsum('nctv,nvw->nctw', x_k2, x_med)
 
         x = x_k1 + x_k2
-        return x.contiguous(), A
+        return x, A

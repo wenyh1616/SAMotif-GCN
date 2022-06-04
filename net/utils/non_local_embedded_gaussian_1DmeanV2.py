@@ -1,6 +1,5 @@
-import torch
-from torch import nn
-from torch.nn import functional as F
+import jittor
+import jittor.nn as nn
 
 
 class _NonLocalBlockND(nn.Module):
@@ -30,7 +29,8 @@ class _NonLocalBlockND(nn.Module):
             bn = nn.BatchNorm2d
         else:
             conv_nd = nn.Conv1d
-            max_pool_layer = nn.MaxPool1d(kernel_size=(2))
+            # max_pool_layer = nn.MaxPool1d(kernel_size=(2))
+            max_pool_layer = nn.MaxPool2d(kernel_size=(1, 2))
             bn = nn.BatchNorm1d
 
         self.g = conv_nd(in_channels=self.in_channels, out_channels=self.inter_channels,
@@ -60,17 +60,18 @@ class _NonLocalBlockND(nn.Module):
             self.g = nn.Sequential(self.g, max_pool_layer)
             self.phi = nn.Sequential(self.phi, max_pool_layer)
 
-    def forward(self, x):
+    def execute(self, x):
         '''
         :param x: (b, c, t, h, w)
         :return:
         '''
 
         N, C, T, V = x.size()  # , c, t, v
-        x = x.permute(0, 3, 1, 2).contiguous() #N ,V , C, T
+        x = x.permute(0, 3, 1, 2) # .contiguous() #N ,V , C, T
         x = x.view(N * V, C, T)
         batch_size = N
-        g_x = self.g(x).view(batch_size, V * self.inter_channels, -1)
+        g_x = self.g(x)#.view(batch_size, V * self.inter_channels, -1)
+        g_x = g_x.view(batch_size, V * self.inter_channels, -1)
 
         g_x = g_x.permute(0, 2, 1)
 
@@ -82,16 +83,17 @@ class _NonLocalBlockND(nn.Module):
 
         phi_x = self.phi(xmean).view(batch_size, self.inter_channels, -1) #.mean(dim = 1)
         # phi_x = phi_x.view(batch_size, self.inter_channels , -1)
-        f = torch.matmul(theta_x, phi_x)
-        f_div_C = F.softmax(f, dim=-1)
+        f = jittor.matmul(theta_x, phi_x)
+        # f_div_C = F.softmax(f, dim=-1)
+        f_div_C = nn.softmax(f, dim=-1)
 
-        y = torch.matmul(f_div_C, g_x)
-        y = y.permute(0, 2, 1).contiguous()
+        y = jittor.matmul(f_div_C, g_x)
+        y = y.permute(0, 2, 1) #.contiguous()
         y = y.view(batch_size * V, self.inter_channels, *x.size()[2:])
         W_y = self.W(y)
         z = W_y + x
         z = z.view(N, V, C, T)
-        z = z.permute(0, 2, 3, 1).contiguous()
+        z = z.permute(0, 2, 3, 1) #.contiguous()
 
         return z
 
@@ -121,20 +123,19 @@ class NONLocalBlock3D(_NonLocalBlockND):
 
 
 if __name__ == '__main__':
-    import torch
 
     for (sub_sample, bn_layer) in [(True, True), (False, False), (True, False), (False, True)]:
-        img = torch.zeros(2, 3, 20)
-        net = NONLocalBlock1D(3, sub_sample=sub_sample, bn_layer=bn_layer)
-        out = net(img)
-        print(out.size())
+        # img = jittor.zeros((2, 3, 20))
+        # net = NONLocalBlock1D(3, sub_sample=sub_sample, bn_layer=bn_layer)
+        # out = net(img)
+        # print(out.size())
 
-        img = torch.zeros(2, 3, 20, 20)
+        img = jittor.zeros((2, 3, 20, 20))
         net = NONLocalBlock2D(3, sub_sample=sub_sample, bn_layer=bn_layer)
         out = net(img)
         print(out.size())
 
-        img = torch.randn(2, 3, 8, 20, 20)
+        img = jittor.randn((2, 3, 8, 20, 20))
         net = NONLocalBlock3D(3, sub_sample=sub_sample, bn_layer=bn_layer)
         out = net(img)
         print(out.size())

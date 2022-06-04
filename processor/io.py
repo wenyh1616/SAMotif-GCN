@@ -6,14 +6,15 @@ import yaml
 import numpy as np
 
 # torch
-import torch
-import torch.nn as nn
+# import torch
+import jittor
+import jittor.nn as nn
 
 # torchlight
-import torchlight
-from torchlight import str2bool
-from torchlight import DictAction
-from torchlight import import_class
+import torchlight.torchlight as torchlight
+from torchlight.torchlight import str2bool
+from torchlight.torchlight import DictAction
+from torchlight.torchlight import import_class
 
 class IO():
     """
@@ -26,7 +27,7 @@ class IO():
         self.init_environment()
         self.load_model()
         self.load_weights()
-        self.gpu()
+        # self.gpu()
 
     def load_arg(self, argv=None):
         parser = self.get_parser()
@@ -36,7 +37,7 @@ class IO():
         if p.config is not None:
             # load config file
             with open(p.config, 'r') as f:
-                default_arg = yaml.load(f)
+                default_arg = yaml.load(f,Loader=yaml.FullLoader)
 
             # update parser from config file
             key = vars(p).keys()
@@ -59,7 +60,7 @@ class IO():
         # gpu
         if self.arg.use_gpu:
             gpus = torchlight.visible_gpu(self.arg.device)
-            torchlight.occupy_gpu(gpus)
+            # torchlight.occupy_gpu(gpus)    为什么
             self.gpus = gpus
             self.dev = "cuda:0"
         else:
@@ -76,15 +77,16 @@ class IO():
 
     def gpu(self):
         # move modules to gpu
-        self.model = self.model.to(self.dev)
-        for name, value in vars(self).items():
-            cls_name = str(value.__class__)
-            if cls_name.find('torch.nn.modules') != -1:
-                setattr(self, name, value.to(self.dev))
+        # self.model = self.model.to(self.dev)
+        # for name, value in vars(self).items():
+        #     cls_name = str(value.__class__)
+        #     if cls_name.find('torch.nn.modules') != -1:
+        #         setattr(self, name, value.to(self.dev))
+        pass
 
         # model parallel
-        if self.arg.use_gpu and len(self.gpus) > 1:
-            self.model = nn.DataParallel(self.model, device_ids=self.gpus)
+        # if self.arg.use_gpu and len(self.gpus) > 1:
+        #     self.model = nn.DataParallel(self.model, device_ids=self.gpus)
 
     def start(self):
         self.io.print_log(f'Parameters:\n{str(vars(self.arg))}\n')

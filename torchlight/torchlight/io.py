@@ -10,10 +10,12 @@ from collections import OrderedDict
 import yaml
 import numpy as np
 # torch
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.autograd import Variable
+# import torch
+# import torch.nn as nn
+# import torch.optim as optim
+# from torch.autograd import Variable
+import jittor
+import jittor.nn as nn
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
@@ -50,6 +52,7 @@ class IO():
 
     def load_model(self, model, **model_args):
         Model = import_class(model)
+        print(Model)
         model = Model(**model_args)
         self.model_text += '\n\n' + str(model)
         return model
@@ -61,9 +64,9 @@ class IO():
             ignore_weights = [ignore_weights]
 
         self.print_log(f'Load weights from {weights_path}.')
-        weights = torch.load(weights_path)
-        weights = OrderedDict([[k.split('module.')[-1],
-                                v.cpu()] for k, v in weights.items()])
+        weights = jittor.load(weights_path)
+        weights = OrderedDict([[k,v
+                                ] for k, v in weights.items()])
 
         # filter weights
         for i in ignore_weights:
@@ -101,9 +104,9 @@ class IO():
     def save_model(self, model, name):
         model_path = f'{self.work_dir}/{name}'
         state_dict = model.state_dict()
-        weights = OrderedDict([[''.join(k.split('module.')),
-                                v.cpu()] for k, v in state_dict.items()])
-        torch.save(weights, model_path)
+        weights = OrderedDict([[k,
+                                v] for k, v in state_dict.items()])
+        jittor.save(weights, model_path)
         self.print_log(f'The model has been saved as {model_path}.')
 
     def save_arg(self, arg):
@@ -119,15 +122,16 @@ class IO():
             yaml.dump(arg_dict, f, default_flow_style=False, indent=4)
 
     def print_log(self, str, print_time=True):
-        if print_time:
-            # localtime = time.asctime(time.localtime(time.time()))
-            str = time.strftime("[%m.%d.%y|%X] ", time.localtime()) + str
+        if jittor.rank == 0:
+            if print_time:
+                # localtime = time.asctime(time.localtime(time.time()))
+                str = time.strftime("[%m.%d.%y|%X] ", time.localtime()) + str
 
-        if self.print_to_screen:
-            print(str)
-        if self.save_log:
-            with open(f'{self.work_dir}/log.txt', 'a') as f:
-                print(str, file=f)
+            if self.print_to_screen:
+                print(str)
+            if self.save_log:
+                with open(f'{self.work_dir}/log.txt', 'a') as f:
+                    print(str, file=f)
 
     def init_timer(self, *name):
         self.record_time()

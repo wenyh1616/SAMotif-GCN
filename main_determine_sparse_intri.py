@@ -2,7 +2,8 @@
 import argparse
 import sys
 
-from torchlight import import_class
+from torchlight.torchlight  import import_class
+
 
 if __name__ == '__main__':
 

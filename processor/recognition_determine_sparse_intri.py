@@ -5,13 +5,16 @@ import argparse
 import numpy as np
 
 # torch
-import torch
-import torch.nn as nn
-import torch.optim as optim
+# import torch
+# import torch.nn as nn
+# import torch.optim as optim
+import jittor
+import jittor.nn as nn
+import jittor.optim as optim
 
 # torchlight
-from torchlight import str2bool
-
+from torchlight.torchlight import str2bool
+jittor.flags.use_cuda = 1
 from .processor_determine_sparse_intri import Processor
 #from net.utils.profile import *
 # from torchvision.models import resnet152
@@ -22,7 +25,7 @@ from .processor_determine_sparse_intri import Processor
 # print("FLOPs", flops/(1000 * 1000 * 1000))
 # print("params", params/(1000 * 1000))
 # print("resnet")
-from ptflops import get_model_complexity_info
+# from ptflops import get_model_complexity_info
 # net = resnet152()
 # flops, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=True)
 # print("")
@@ -38,24 +41,37 @@ from ptflops import get_model_complexity_info
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv1d') != -1:
-        m.weight.data.normal_(0.0, 0.02)
+        # m.weight.data.normal_(0.0, 0.02)
+        # m.weight = jittor.normal(0.0,0.02,size=m.weight.shape)
         # m.weight.data.fill_(0.01)
+        jittor.init.gauss_(m.weight,0.0,0.02)
         if m.bias is not None:
-            m.bias.data.fill_(0)
+            # m.bias.data.fill_(0)
+            # m.bias = jittor.zeros_like(m.bias)
+            jittor.init.zero_(m.bias)
     elif classname.find('Conv2d') != -1:
-        m.weight.data.normal_(0.0, 0.02)
+        # m.weight.data.normal_(0.0, 0.02)
+        # m.weight = jittor.normal(0.0,0.02,size=m.weight.shape)
+        jittor.init.gauss_(m.weight,0.0,0.02)
         # m.weight.data.fill_(0)
         if m.bias is not None:
-            m.bias.data.fill_(0)
+            # m.bias.data.fill_(0)
+            jittor.init.zero_(m.bias)
     elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
+        # m.weight.data.normal_(1.0, 0.02)
+        # m.bias = jittor.zeros_like(m.bias)
+        # m.weight = jittor.normal(1.0,0.02,size=m.weight.shape)
+        jittor.init.zero_(m.bias)
+        jittor.init.gauss_(m.weight,1.0,0.02)
+        # m.bias.data.fill_(0)
     elif classname.find('Linear') != -1:
-        m.weight.data.normal_(1.0, 0.02)
+        # m.weight.data.normal_(1.0, 0.02)
+        jittor.init.gauss_(m.weight,1.0,0.02)
         if m.bias is not None:
-            m.bias.data.fill_(0.01)
+            # m.bias.data.fill_(0.01)
+            jittor.init.constant_(m.bias,value=0.01)
 def l1_loss(x):
-    return torch.abs(x).sum()
+    return jittor.abs(x).sum()
 
 class REC_Processor(Processor):
     """
@@ -107,6 +123,9 @@ class REC_Processor(Processor):
         rank = self.result.argsort()
         hit_top_k = [l in rank[i, -k:] for i, l in enumerate(self.label)]
         accuracy = sum(hit_top_k) * 1.0 / len(hit_top_k)
+        accuracy = jittor.array(accuracy)
+        accuracy = accuracy.mpi_all_reduce(op='mean')
+        accuracy = accuracy.item()
         self.io.print_log(f'\tTop{k}: {100 * accuracy:.2f}%')
 
 
@@ -120,15 +139,15 @@ class REC_Processor(Processor):
         for batch_idx, (data, label) in enumerate(loader):
 
             # get data
-            data = data.float().to(self.dev)
-            label = label.long().to(self.dev)
+            data = data.float()
+            label = label.long()
 
 
             # forward
             output = self.model(data)
             to_regularize = []
             # to_regularize2 = []
-            intri_importance = self.model.module.intri_importance
+            intri_importance = self.model.intri_importance
             # for param in edge_importance:
             #     param_use = param.view(-1)
             #     to_regularize.append(param_use)
@@ -139,13 +158,14 @@ class REC_Processor(Processor):
                 param_use = param.view(-1)
                 to_regularize.append(param_use)
            # test =
-            l1 = self.arg.lamda_r * l1_loss(torch.cat(to_regularize))
+            l1 = self.arg.lamda_r * l1_loss(jittor.concat(to_regularize))
             loss = self.loss(output, label) + l1
 
             # backward
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            # self.optimizer.zero_grad()
+            # loss.backward()
+            # self.optimizer.step()
+            self.optimizer.step(loss)
 
             # statistics
             self.iter_info['loss'] = loss.data.item()
@@ -169,32 +189,34 @@ class REC_Processor(Processor):
         for data, label in loader:
             
             # get data
-            data = data.float().to(self.dev)
-            label = label.long().to(self.dev)
+            data = data.float()
+            label = label.long()
 
             # inference
-            with torch.no_grad():
+            with jittor.no_grad():
                 output = self.model(data)
-            result_frag.append(output.data.cpu().numpy())
+            result_frag.append(output.data)
 
             # get loss
             if evaluation:
 
                 to_regularize = []
                 # edge_importance = self.model.module.edge_importance
-                intri_importance = self.model.module.intri_importance
+                intri_importance = self.model.intri_importance
                 # for param in edge_importance:
                 #     param_use = param.view(-1)
                 #     to_regularize.append(param_use)
                 for param in intri_importance:
                     param_use = param[-1].view(-1)
                     to_regularize.append(param_use)
-                test =  l1_loss(torch.cat(to_regularize))
+                test =  l1_loss(jittor.concat(to_regularize))
                 l1 = self.arg.lamda_r
 
                 loss = self.loss(output, label) + l1
+                loss = loss.mpi_all_reduce(op='mean')
                 loss_value.append(loss.item())
-                label_frag.append(label.data.cpu().numpy())
+                # label_frag.append(label.data.cpu().numpy())
+                label_frag.append(label.data)
 
         self.result = np.concatenate(result_frag)
         if evaluation:

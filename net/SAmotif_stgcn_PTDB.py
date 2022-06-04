@@ -1,6 +1,8 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+import jittor
+import jittor.nn as nn
 
 from net.utils.tgcn_med import MotifSTGraphical
 from net.utils.graph_origin import Graph
@@ -34,18 +36,19 @@ class Model(nn.Module):
 
         # load graph
         self.graph = Graph(**graph_args)
-
-        A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
-        self.register_buffer('A', A)
+        self._A = jittor.float32(jittor.Var(self.graph.A))
+        # A.stop_grad()
+        # self.register_buffer('A', A)
+        # setattr(self,'A',A)
         # build networks
-        spatial_kernel_size = A.size(0)
+        spatial_kernel_size = self._A.size(0)
 
         temporal_kernel_size = [9, 9, 9]
         kernel_size = (temporal_kernel_size, spatial_kernel_size)
 
-        self.data_bn = nn.BatchNorm1d(in_channels * A.size(1))
+        self.data_bn = nn.BatchNorm1d(in_channels * self._A.size(1))
 
-        self.motif_gcn_networks = nn.ModuleList((
+        self.motif_gcn_networks = nn.ModuleList([
             motif_gcn(in_channels, 64, kernel_size, 1, residual=False, **vtdb_args, **kwargs),
             motif_gcn(64, 64, kernel_size, 1, **vtdb_args, **kwargs),
             motif_gcn(64, 64, kernel_size, 1, **vtdb_args, **kwargs),
@@ -56,20 +59,16 @@ class Model(nn.Module):
             motif_gcn(128, 256, kernel_size, 2, NL=True,**vtdb_args, **kwargs),
             motif_gcn(256, 256, kernel_size, 1, **vtdb_args, **kwargs),
             motif_gcn(256, 256, kernel_size, 1, **vtdb_args, **kwargs),
-        ))
+        ])
 
 
 
-        self.intri_importance = nn.Parameter(torch.ones([1, A.size(1), A.size(2)]))
+        self.intri_importance = nn.Parameter(jittor.ones([1, self._A.size(1), self._A.size(2)]))
 
         # fcn for prediction
         self.fcn = nn.Conv2d(256, num_class, kernel_size=1)
 
-        if pyramid_pool:
-            self.pool = SPPLayer(num_levels=2, pool_type='avg_pool')
-            self.use_pyramid = True
-        else:
-            self.use_pyramid = False
+        self.use_pyramid = False
         self.trans = TransSkeleton()
 
 
@@ -77,22 +76,22 @@ class Model(nn.Module):
         for motif in self.motif_gcn_networks:
             motif.momentum = momentum
 
-    def forward(self, x):
+    def execute(self, x):
 
 
         N, C, T, V, M = x.size()
-        x = x.permute(0, 4, 3, 1, 2).contiguous()
+        x = x.permute(0, 4, 3, 1, 2)
         x = x.view(N * M, V * C, T)
         x = self.data_bn(x)
         x = x.view(N, M, V, C, T)
-        x = x.permute(0, 1, 3, 4, 2).contiguous()
+        x = x.permute(0, 1, 3, 4, 2)
         x = x.view(N * M, C, T, V)
 
         # forward
         for gcn in self.motif_gcn_networks:
 
-            x_med = self.trans(x, self.A)
-            x, _ = gcn(x, self.A, x_med * self.intri_importance)
+            x_med = self.trans(x, self._A)
+            x, _ = gcn(x, self._A, x_med * self.intri_importance)
 
         if self.use_pyramid:
             x = self.pool(x)
@@ -100,7 +99,7 @@ class Model(nn.Module):
             x = x.mean(dim=2)
         else:
             # global pooling
-            x =  F.avg_pool2d(x, x.size()[2:])
+            x =  nn.avg_pool2d(x, tuple(x.size()[2:]))
             x = x.view(N, M, -1, 1, 1).mean(dim=1)
 
         # prediction
@@ -116,8 +115,8 @@ class HalfSplit(nn.Module):
         self.first_half = first_half
         self.dim = dim
 
-    def forward(self, input):
-        splits = torch.chunk(input, 2, dim=self.dim)
+    def execute(self, input):
+        splits = jittor.chunk(input, 2, dim=self.dim)
         return splits[0] if self.first_half else splits[1]
 
 class ChannelShuffle(nn.Module):
@@ -125,11 +124,11 @@ class ChannelShuffle(nn.Module):
         super(ChannelShuffle, self).__init__()
         self.groups = groups
 
-    def forward(self, x):
+    def execute(self, x):
         '''Channel shuffle: [N,C,H,W] -> [N,g,C/g,H,W] -> [N,C/g,g,H,w] -> [N,C,H,W]'''
         N, C, H, W = x.size()
         g = self.groups
-        return x.view(N, g, int(C / g), H, W).permute(0, 2, 1, 3, 4).contiguous().view(N, C, H, W)
+        return x.view(N, g, int(C / g), H, W).permute(0, 2, 1, 3, 4).view(N, C, H, W)
 
 class motif_gcn(nn.Module):
     r"""Applies a spatial temporal graph convolution over an input graph sequence.
@@ -216,10 +215,8 @@ class motif_gcn(nn.Module):
                 )
 
 
-        self.seq0 = nn.Sequential(nn.BatchNorm2d(out_channels, momentum=momentum),
-                                  nn.ReLU(inplace=True))
-        self.seq = nn.Sequential(nn.BatchNorm2d(inter_channels, momentum=momentum),
-                                 nn.ReLU(inplace=True))
+        self.seq0 = nn.Sequential(nn.BatchNorm2d(out_channels, momentum=momentum),nn.ReLU())
+        self.seq = nn.Sequential(nn.BatchNorm2d(inter_channels, momentum=momentum),nn.ReLU())
         num_layers = 3
         growth_rate = inter_channels // gr
         block = DenseBlock(
@@ -245,9 +242,9 @@ class motif_gcn(nn.Module):
                            stride=stride, padding=0)
         self.tcn.add_module('transition', trans)
 
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
 
-    def forward(self, x, A, x_med):
+    def execute(self, x, A, x_med):
 
         res = self.res(x)
         x, A = self.gcn(x, A, x_med)
@@ -264,7 +261,7 @@ class motif_gcn(nn.Module):
             x2 = self.res2(x2)
             x1 = self.first_half(x)
             x1 = self.tcn(x1)
-            x = torch.cat([x1, x2], dim=1)
+            x = jittor.concat([x1, x2], dim=1)
 
             x = x + res
 

@@ -1,42 +1,42 @@
 import logging
 
-import torch
-import torch.nn as nn
-from torch.nn.modules.conv import _ConvNd
+import jittor
+import jittor.nn as nn
+# from torch.nn.modules.conv import _ConvNd
 
-from .count_hooks import *
+#from .count_hooks import *   #这是什么
 
-register_hooks = {
-    nn.Conv1d: count_convNd,
-    nn.Conv2d: count_convNd,
-    nn.Conv3d: count_convNd,
-    # nn.ConvTranspose2d: count_convtranspose2d,
+# register_hooks = {
+#     nn.Conv1d: count_convNd,
+#     nn.Conv2d: count_convNd,
+#     nn.Conv3d: count_convNd,
+#     # nn.ConvTranspose2d: count_convtranspose2d,
 
-    # nn.BatchNorm1d: count_bn,
-    # nn.BatchNorm2d: count_bn,
-    # nn.BatchNorm3d: count_bn,
-    #
-    # nn.ReLU: count_relu,
-    # nn.ReLU6: count_relu,
-    # nn.LeakyReLU: count_relu,
-    #
-    # nn.MaxPool1d: count_maxpool,
-    # nn.MaxPool2d: count_maxpool,
-    # nn.MaxPool3d: count_maxpool,
-    # nn.AdaptiveMaxPool1d: count_adap_maxpool,
-    # nn.AdaptiveMaxPool2d: count_adap_maxpool,
-    # nn.AdaptiveMaxPool3d: count_adap_maxpool,
-    #
-    # nn.AvgPool1d: count_avgpool,
-    # nn.AvgPool2d: count_avgpool,
-    # nn.AvgPool3d: count_avgpool,
-    #
-    # nn.AdaptiveAvgPool1d: count_adap_avgpool,
-    # nn.AdaptiveAvgPool2d: count_adap_avgpool,
-    # nn.AdaptiveAvgPool3d: count_adap_avgpool,
-    # nn.Linear: count_linear,
-    # nn.Dropout: None,
-}
+#     # nn.BatchNorm1d: count_bn,
+#     # nn.BatchNorm2d: count_bn,
+#     # nn.BatchNorm3d: count_bn,
+#     #
+#     # nn.ReLU: count_relu,
+#     # nn.ReLU6: count_relu,
+#     # nn.LeakyReLU: count_relu,
+#     #
+#     # nn.MaxPool1d: count_maxpool,
+#     # nn.MaxPool2d: count_maxpool,
+#     # nn.MaxPool3d: count_maxpool,
+#     # nn.AdaptiveMaxPool1d: count_adap_maxpool,
+#     # nn.AdaptiveMaxPool2d: count_adap_maxpool,
+#     # nn.AdaptiveMaxPool3d: count_adap_maxpool,
+#     #
+#     # nn.AvgPool1d: count_avgpool,
+#     # nn.AvgPool2d: count_avgpool,
+#     # nn.AvgPool3d: count_avgpool,
+#     #
+#     # nn.AdaptiveAvgPool1d: count_adap_avgpool,
+#     # nn.AdaptiveAvgPool2d: count_adap_avgpool,
+#     # nn.AdaptiveAvgPool3d: count_adap_avgpool,
+#     # nn.Linear: count_linear,
+#     # nn.Dropout: None,
+# }
 
 
 def profile(model, input_size, custom_ops={}, device="cpu"):
@@ -46,11 +46,13 @@ def profile(model, input_size, custom_ops={}, device="cpu"):
         if len(list(m.children())) > 0:
             return
 
-        m.register_buffer('total_ops', torch.zeros(1))
-        m.register_buffer('total_params', torch.zeros(1))
+        setattr(m,'total_ops',jittor.zeros(1))
+        setattr(m,'total_params',jittor.zeros(1))
+        # m.register_buffer('total_ops', torch.zeros(1))
+        # m.register_buffer('total_params', torch.zeros(1))
 
         for p in m.parameters():
-            m.total_params += torch.Tensor([p.numel()])
+            m.total_params += jittor.Var([p.numel()])
 
         m_type = type(m)
         fn = None

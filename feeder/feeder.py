@@ -6,19 +6,20 @@ import random
 import pickle
 
 # torch
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-from torchvision import datasets, transforms
+# import torch
+# import torch.nn as nn
+# import torch.optim as optim
+# import torch.nn.functional as F
+import jittor
+import jittor.nn as nn
+# from torchvision import datasets, transforms
 
 # visualization
 import time
 
 # operation
 from . import tools
-
-class Feeder(torch.utils.data.Dataset):
+class Feeder(jittor.dataset.Dataset):
     """ Feeder for skeleton-based action recognition
     Arguments:
         data_path: the path to '.npy' data, the shape of data should be (N, C, T, V, M)
@@ -38,6 +39,7 @@ class Feeder(torch.utils.data.Dataset):
                  window_size=-1,
                  debug=False,
                  mmap=True):
+        super().__init__()
         self.debug = debug
         self.data_path = data_path
         self.label_path = label_path
