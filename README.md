@@ -53,3 +53,6 @@ For any question, feel free to contact
 ```
 Yu-Hui Wen: wenyh1616@gmail.com
 ```
+
+## Special Thanks
+Our work is based on our [Motif-GCN](https://github.com/wenyh1616/motif-stgcn) and [ST-GCN](https://github.com/yysijie/st-gcn). Special thanks to Sijie Yan, Yuanjun Xiong for their outstanding work.
