@@ -7,7 +7,7 @@ This repository holds the codebase for the paper:
 
 ## Prerequisites
 - Python3 (>3.5)
-- [PyTorch](http://pytorch.org/)
+- [Jittor](http://cg.cs.tsinghua.edu.cn/jittor/)
 - Other Python libraries can be installed by `pip install -r requirements.txt`
 
 
