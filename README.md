@@ -19,9 +19,30 @@ cd SAMotif-GCN
 cd torchlight; python setup.py install; cd ..
 ```
 
+# Data Preparation
 
+ - Download the raw data from [NTU-RGB+D](https://github.com/shahroudy/NTURGB-D) and [Skeleton-Kinetics](https://github.com/yysijie/st-gcn). 
+            
+
+[https://github.com/shahroudy/NTURGB-D]: NTU-RGB+D
+[https://github.com/yysijie/st-gcn]: Skeleton-Kinetics
+
+ - Preprocess the data with
+  
+    `python tools/ntu_gendata.py`
+    
+    `python tools/kinetics-gendata.py.`
+
+ - Generate the bone data with: 
+    
+    `python tools/gen_bone_data.py`
+    
+ - Generate the motion data with:
+   
+    `python tools/gen_motion_data.py`
+    
 ## Training
-To train a new ST-GCN model, run
+To train a new model, run
 
 ```
 python main.py recognition -c config/st_gcn/<dataset>/train.yaml
