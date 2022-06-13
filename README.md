@@ -73,4 +73,4 @@ Yu-Hui Wen: wenyh1616@gmail.com
 ```
 
 ## Special Thanks
-Our work is based on our [Motif-GCN](https://github.com/wenyh1616/motif-stgcn) and [ST-GCN](https://github.com/yysijie/st-gcn). Special thanks to Sijie Yan, Yuanjun Xiong for their outstanding work.
+Our work is based on our [Motif-GCN](https://github.com/wenyh1616/motif-stgcn) and [ST-GCN](https://github.com/yysijie/st-gcn). The data preparation is developed based on [2s-AGCN](https://github.com/lshiwjx/2s-AGCN). Special thanks to Sijie Yan, Yuanjun Xiong for their outstanding work.
