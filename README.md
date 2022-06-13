@@ -37,9 +37,6 @@ cd torchlight; python setup.py install; cd ..
     
     `python tools/gen_bone_data.py`
     
- - Generate the motion data with:
-   
-    `python tools/gen_motion_data.py`
     
 ## Training
 To train a new model, run
