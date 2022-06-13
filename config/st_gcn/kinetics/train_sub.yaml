@@ -32,7 +32,7 @@ model_args:
 
 # training
 lamda_r: 0.00014
-device: [0,1]
+device: [0,1,2,3,4,5,6,7]
 batch_size: 64
 test_batch_size: 64
 
